@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Research Assistant — Multi-Agent AI</title>
+    <meta name="description" content="Chat with any PDF using 6 specialized AI agents powered by Groq. Runs 100% in your browser — no server, no install.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app-container">
+
+    <!-- HEADER -->
+    <header class="app-header">
+        <div class="header-logo">
+            <div class="pulse-icon"><i class="fa-solid fa-brain-circuit"></i></div>
+            <div class="logo-text">
+                <h1>PDF Research Assistant</h1>
+                <span class="subtitle">6-Agent AI System · Powered by Groq · Runs in Browser</span>
+            </div>
+        </div>
+        <div class="header-actions">
+            <div id="connectionStatus" class="connection-status ready">
+                <span class="status-dot"></span><span id="statusText">Ready</span>
+            </div>
+            <button id="btnSettings" class="btn-icon"><i class="fa-solid fa-sliders"></i> Settings</button>
+        </div>
+    </header>
+
+    <main class="app-body">
+
+        <!-- LEFT SIDEBAR -->
+        <section class="sidebar-panel">
+
+            <!-- Upload Card -->
+            <div class="card upload-card">
+                <div class="card-header"><h3><i class="fa-solid fa-file-pdf"></i> Document Ingestion</h3></div>
+                <div class="card-body">
+
+                    <!-- Hidden file input — triggered by label below -->
+                    <input type="file" id="pdfFileInput" accept=".pdf,application/pdf" style="position:absolute;opacity:0;width:0;height:0;pointer-events:none;">
+
+                    <!-- Drop zone (also acts as click target via JS) -->
+                    <div id="dropZone" class="drop-zone">
+                        <i class="fa-solid fa-cloud-arrow-up drop-icon"></i>
+                        <p class="drop-title">Drag &amp; Drop PDF here</p>
+                        <p class="drop-subtitle">or click the button below</p>
+                    </div>
+
+                    <!-- Primary upload button — <label> guarantees file picker opens -->
+                    <label for="pdfFileInput" class="btn btn-outline btn-full" style="margin-top:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+                        <i class="fa-solid fa-folder-open"></i> Browse &amp; Upload PDF
+                    </label>
+
+                    <!-- Processing progress -->
+                    <div id="uploadProgress" class="upload-progress hidden">
+                        <div class="dual-spinner"></div>
+                        <p id="progressMessage" class="progress-message">Processing…</p>
+                        <div class="progress-bar-container">
+                            <div id="progressBar" class="progress-bar" style="width:5%"></div>
+                        </div>
+                        <p id="progressSub" class="progress-sub-message"></p>
+                    </div>
+
+                    <!-- Loaded PDF details -->
+                    <div id="pdfDetails" class="pdf-details hidden">
+                        <div class="pdf-info-row">
+                            <span class="info-label">File:</span>
+                            <span id="pdfName" class="info-value font-mono text-truncate">-</span>
+                        </div>
+                        <div class="pdf-info-grid">
+                            <div class="info-box"><span class="box-label">Pages</span><span id="pdfPages" class="box-val">-</span></div>
+                            <div class="info-box"><span class="box-label">Words</span><span id="pdfWords" class="box-val">-</span></div>
+                            <div class="info-box"><span class="box-label">Chunks</span><span id="pdfChunks" class="box-val">-</span></div>
+                            <div class="info-box"><span class="box-label">Tables</span><span id="pdfTables" class="box-val">0</span></div>
+                        </div>
+                        <div class="pdf-info-row metadata-row">
+                            <span class="info-label">Title:</span>
+                            <span id="pdfTitle" class="info-value text-truncate">-</span>
+                        </div>
+                        <div class="pdf-info-row metadata-row">
+                            <span class="info-label">Author:</span>
+                            <span id="pdfAuthor" class="info-value text-truncate">-</span>
+                        </div>
+                        <button id="btnResetPdf" class="btn btn-outline btn-full btn-danger">
+                            <i class="fa-solid fa-trash-can"></i> Clear Document
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pipeline Visual -->
+            <div class="card pipeline-card">
+                <div class="card-header"><h3><i class="fa-solid fa-network-wired"></i> Agent Orchestration</h3></div>
+                <div class="card-body pipeline-body">
+                    <div class="agent-pipeline">
+                        <div class="agent-node" id="node-ingestion">
+                            <div class="node-icon"><i class="fa-solid fa-file-import"></i></div>
+                            <div class="node-details"><div class="node-name">Ingestion Agent</div><div class="node-status">Idle</div></div>
+                        </div>
+                        <div class="pipeline-connector" id="conn-1"></div>
+                        <div class="agent-node" id="node-indexing">
+                            <div class="node-icon"><i class="fa-solid fa-database"></i></div>
+                            <div class="node-details"><div class="node-name">Indexing Agent</div><div class="node-status">Idle</div></div>
+                        </div>
+                        <div class="pipeline-connector" id="conn-2"></div>
+                        <div class="agent-node" id="node-retriever">
+                            <div class="node-icon"><i class="fa-solid fa-magnifying-glass"></i></div>
+                            <div class="node-details"><div class="node-name">Retriever Agent</div><div class="node-status">Idle</div></div>
+                        </div>
+                        <div class="pipeline-connector" id="conn-3"></div>
+                        <div class="agent-node" id="node-summarizer">
+                            <div class="node-icon"><i class="fa-solid fa-pen-nib"></i></div>
+                            <div class="node-details"><div class="node-name">Summarizer Agent</div><div class="node-status">Idle</div></div>
+                        </div>
+                        <div class="pipeline-connector" id="conn-4"></div>
+                        <div class="agent-node" id="node-validator">
+                            <div class="node-icon"><i class="fa-solid fa-shield-halved"></i></div>
+                            <div class="node-details"><div class="node-name">Validator Agent</div><div class="node-status">Idle</div></div>
+                        </div>
+                        <div class="pipeline-connector" id="conn-5"></div>
+                        <div class="agent-node" id="node-conversation">
+                            <div class="node-icon"><i class="fa-solid fa-comments"></i></div>
+                            <div class="node-details"><div class="node-name">Conversation Agent</div><div class="node-status">Idle</div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CHAT AREA -->
+        <section class="chat-panel">
+            <div class="card chat-card">
+                <div class="chat-header card-header">
+                    <div class="active-chat-info" id="chatHeaderInfo">
+                        <span class="chat-status-indicator"></span>
+                        <div>
+                            <h3 id="activeDocTitle">Research Assistant</h3>
+                            <span class="active-doc-sub" id="activeDocSub">Upload a PDF to begin</span>
+                        </div>
+                    </div>
+                    <button id="btnClearChat" class="btn btn-sm btn-outline"><i class="fa-solid fa-broom"></i> Clear</button>
+                </div>
+                <div id="chatMessages" class="chat-messages">
+                    <div class="system-welcome" id="welcomeScreen">
+                        <div class="welcome-icon"><i class="fa-solid fa-robot"></i></div>
+                        <h2>Welcome to PDF Research Assistant</h2>
+                        <p>All 6 AI agents run in your browser — no server, no install required.</p>
+                        <div class="welcome-steps">
+                            <div class="step-item">
+                                <span class="step-num">1</span>
+                                <span>Click <strong>Settings</strong> and paste your <a href="https://console.groq.com" target="_blank" style="color:var(--accent-primary)">Groq API Key</a> (free).</span>
+                            </div>
+                            <div class="step-item">
+                                <span class="step-num">2</span>
+                                <span>Click <strong>Browse &amp; Upload PDF</strong> or drag a file onto the drop zone.</span>
+                            </div>
+                            <div class="step-item">
+                                <span class="step-num">3</span>
+                                <span>Ask any question — agents retrieve, summarize &amp; fact-check instantly.</span>
+                            </div>
+                        </div>
+                        <div class="browser-badge"><i class="fa-solid fa-lock"></i> Fully private — your PDF never leaves your browser</div>
+                    </div>
+                </div>
+                <div class="chat-input-area">
+                    <form id="chatForm" class="chat-form">
+                        <input type="text" id="userInput" placeholder="Upload a PDF to start asking questions…" autocomplete="off" disabled>
+                        <button type="submit" id="btnSend" class="btn btn-primary" disabled>
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </section>
+
+        <!-- RIGHT PANEL -->
+        <section class="validation-panel">
+            <div class="card validation-card">
+                <div class="card-header"><h3><i class="fa-solid fa-circle-check"></i> Factual Integrity Report</h3></div>
+                <div class="card-body">
+                    <div id="noValidationMsg" class="panel-placeholder">
+                        <i class="fa-solid fa-clipboard-question"></i>
+                        <p>Validator Agent audit appears here after each response.</p>
+                    </div>
+                    <div id="validationResult" class="validation-result hidden">
+                        <div class="verdict-header">
+                            <div class="gauge-container">
+                                <div class="gauge-bar-outer">
+                                    <div id="gaugeBarInner" class="gauge-bar-inner" style="width:0%"></div>
+                                </div>
+                                <span id="gaugeValue" class="gauge-value">0%</span>
+                            </div>
+                            <span id="verdictBadge" class="badge">-</span>
+                        </div>
+                        <div class="validation-section">
+                            <h4>Claims Verified:</h4>
+                            <ul id="claimsList" class="claims-list"></ul>
+                        </div>
+                        <div id="hallucinationsSection" class="validation-section hidden">
+                            <h4>Potential Hallucinations:</h4>
+                            <div id="hallucinationsList" class="hallucination-alerts"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card citations-card">
+                <div class="card-header"><h3><i class="fa-solid fa-quote-left"></i> Source Citations</h3></div>
+                <div class="card-body citations-body">
+                    <div id="noCitationsMsg" class="panel-placeholder">
+                        <i class="fa-solid fa-book-open-reader"></i>
+                        <p>Retrieved document chunks appear here.</p>
+                    </div>
+                    <div id="citationsList" class="citations-container hidden"></div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- SETTINGS MODAL -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-sliders"></i> Agent Configuration</h2>
+                <span id="btnCloseSettings" class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="settingsForm">
+                    <div class="form-group">
+                        <label for="groqApiKeyInput">Groq API Key <span class="required">*</span></label>
+                        <div class="input-with-icon">
+                            <i class="fa-solid fa-key"></i>
+                            <input type="password" id="groqApiKeyInput" placeholder="gsk_…" autocomplete="off">
+                        </div>
+                        <span class="form-help">🔒 Stored only in browser localStorage. Only sent to api.groq.com.</span>
+                    </div>
+                    <div class="form-group">
+                        <label for="summarizerModelSel">Summarizer Model</label>
+                        <select id="summarizerModelSel">
+                            <option value="llama-3.1-8b-instant">llama-3.1-8b-instant — Fast &amp; Efficient</option>
+                            <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile — Smarter</option>
+                            <option value="gemma2-9b-it">gemma2-9b-it — Google Gemma</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="validatorModelSel">Validator Model</label>
+                        <select id="validatorModelSel">
+                            <option value="llama-3.3-70b-versatile">llama-3.3-70b-versatile — Recommended</option>
+                            <option value="llama-3.1-8b-instant">llama-3.1-8b-instant — Fast</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="topKSel">Retrieval Depth</label>
+                        <select id="topKSel">
+                            <option value="3">3 chunks — Focused</option>
+                            <option value="5" selected>5 chunks — Balanced</option>
+                            <option value="8">8 chunks — Comprehensive</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-full"><i class="fa-solid fa-check"></i> Save Configuration</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- PDF.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+    if (typeof pdfjsLib !== 'undefined') {
+        pdfjsLib.GlobalWorkerOptions.workerSrc =
+            'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+</script>
+<!-- Main app (plain script, no ES modules) -->
+<script src="app.js"></script>
+</body>
+</html>
