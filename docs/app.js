@@ -277,11 +277,33 @@ var RetrieverAgent = {
             });
         }
 
-        // Fallback: if no matches scored > 0, return top-k by index order
+        // Fallback 1: basic substring search for any word in the query
         if (results.length === 0) {
-            for (var i = 0; i < Math.min(k, scores.length); i++) {
-                var idx = scores[i].idx;
-                results.push({ text: index.chunks[idx].text, page: index.chunks[idx].page, score: 0 });
+            var qwords = query.toLowerCase().split(/\s+/).filter(function(w) { return w.length > 2; });
+            if (qwords.length > 0) {
+                var substrScores = [];
+                for (var i = 0; i < index.chunks.length; i++) {
+                    var ctext = index.chunks[i].text.toLowerCase();
+                    var matchCount = 0;
+                    for (var j = 0; j < qwords.length; j++) {
+                        if (ctext.indexOf(qwords[j]) !== -1) matchCount++;
+                    }
+                    if (matchCount > 0) {
+                        substrScores.push({ idx: i, score: matchCount * 0.1 });
+                    }
+                }
+                substrScores.sort(function(a, b) { return b.score - a.score; });
+                for (var i = 0; i < Math.min(k, substrScores.length); i++) {
+                    var idx = substrScores[i].idx;
+                    results.push({ text: index.chunks[idx].text, page: index.chunks[idx].page, score: substrScores[i].score });
+                }
+            }
+        }
+
+        // Fallback 2: if STILL no matches, just return the first k chunks of the document so the LLM has something to read
+        if (results.length === 0) {
+            for (var i = 0; i < Math.min(k, index.chunks.length); i++) {
+                results.push({ text: index.chunks[i].text, page: index.chunks[i].page, score: 0 });
             }
         }
 
@@ -432,6 +454,10 @@ var ConversationAgent = {
         result.metadata.chunk_count = index.chunks.length;
         setNodeState('node-indexing', 'completed', 'Indexed \u2713');
         setConnector('conn-2', true);
+
+        if (index.chunks.length === 0) {
+            throw new Error("No readable text was found in this PDF. If this is a scanned document or an image, you will need to use a PDF with selectable text.");
+        }
 
         return { index: index, metadata: result.metadata };
     },
