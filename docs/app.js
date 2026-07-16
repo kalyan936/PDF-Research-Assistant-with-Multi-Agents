@@ -39,14 +39,20 @@ function $(id) { return document.getElementById(id); }
 // ══════════════════════════════════════════════════════════════════════════════
 var IngestionAgent = {
     run: async function(file, onProgress) {
-        if (typeof pdfjsLib === 'undefined') {
+        var pdfjs = window.pdfjsLib || window['pdfjs-dist/build/pdf'];
+        if (!pdfjs) {
             throw new Error('PDF.js failed to load. Please check your internet connection and refresh.');
         }
 
         onProgress('Ingestion Agent: Reading PDF file…', 10);
-        var arrayBuffer = await file.arrayBuffer();
+        var arrayBuffer;
+        try {
+            arrayBuffer = await file.arrayBuffer();
+        } catch(e) {
+            throw new Error('Failed to read file. Please try uploading again.');
+        }
 
-        var loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+        var loadingTask = pdfjs.getDocument({ data: arrayBuffer });
         var pdf = await loadingTask.promise;
 
         onProgress('Ingestion Agent: Extracting text from ' + pdf.numPages + ' pages…', 15);
@@ -516,8 +522,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (files && files.length > 0) {
             handleUpload(files[0]);
         }
-        // Reset input so same file can be re-selected
-        e.target.value = '';
     });
 
     // Drop zone — drag & drop support
