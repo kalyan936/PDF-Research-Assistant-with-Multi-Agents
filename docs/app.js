@@ -194,8 +194,9 @@ var IndexingAgent = {
                 if (chunk.length > 10) {
                     chunks.push({ text: chunk, page: pageNum });
                 }
+                if (end >= text.length) break; // Break if we reached the end to prevent infinite loops
                 start = end - overlap;
-                if (start >= text.length - 50) break;
+                if (start < 0) start = 0; // Prevent negative start
             }
         }
         return chunks;
