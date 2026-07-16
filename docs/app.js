@@ -156,7 +156,7 @@ var IndexingAgent = {
         for (var p = 0; p < pages.length; p++) {
             var text = pages[p].content;
             var pageNum = pages[p].page_number;
-            if (!text || text.length < 30) continue;
+            if (!text || text.length < 10) continue;
             var start = 0;
             while (start < text.length) {
                 var end = Math.min(start + chunkSize, text.length);
@@ -165,7 +165,7 @@ var IndexingAgent = {
                     if (sp > start + chunkSize * 0.5) end = sp;
                 }
                 var chunk = text.slice(start, end).trim();
-                if (chunk.length > 40) {
+                if (chunk.length > 10) {
                     chunks.push({ text: chunk, page: pageNum });
                 }
                 start = end - overlap;
