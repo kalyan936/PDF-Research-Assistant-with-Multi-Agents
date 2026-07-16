@@ -60,6 +60,7 @@ var IngestionAgent = {
         var pages = [];
         var totalWords = 0;
         var tablesDetected = 0;
+        var ocrWorker = null;
 
         for (var i = 1; i <= pdf.numPages; i++) {
             var page = await pdf.getPage(i);
@@ -106,7 +107,6 @@ var IngestionAgent = {
             // If the page has very little native text, it might be an image or scanned page.
             if (pageText.length < 500) {
                 if (typeof Tesseract !== 'undefined') {
-                    onProgress('Ingestion Agent: Running OCR on page ' + i + ' (Image/Table detected)…', 15 + Math.round((i / pdf.numPages) * 15));
                     try {
                         var viewport = page.getViewport({ scale: 2.0 }); // Higher scale for better OCR accuracy
                         var canvas = document.getElementById('ocrCanvas');
@@ -116,7 +116,13 @@ var IngestionAgent = {
                         
                         await page.render({ canvasContext: ctx, viewport: viewport }).promise;
                         
-                        var result = await Tesseract.recognize(canvas, 'eng', { logger: m => {} });
+                        if (!ocrWorker) {
+                            onProgress('Ingestion Agent: Initializing OCR Engine (First time only, may take 5s)…', 15 + Math.round((i / pdf.numPages) * 15));
+                            ocrWorker = await Tesseract.createWorker('eng');
+                        }
+
+                        onProgress('Ingestion Agent: Running OCR on page ' + i + ' (Image/Table detected)…', 15 + Math.round((i / pdf.numPages) * 15));
+                        var result = await ocrWorker.recognize(canvas);
                         if (result && result.data && result.data.text) {
                             // Append OCR text to whatever native text we found
                             pageText += '\n\n[OCR Extracted]:\n' + result.data.text.trim();
@@ -136,6 +142,10 @@ var IngestionAgent = {
                 var pct = 15 + Math.round((i / pdf.numPages) * 15);
                 onProgress('Ingestion Agent: Processed ' + i + '/' + pdf.numPages + ' pages…', pct);
             }
+        }
+
+        if (ocrWorker) {
+            await ocrWorker.terminate();
         }
 
         // Extract PDF metadata
