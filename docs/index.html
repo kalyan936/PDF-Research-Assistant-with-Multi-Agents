@@ -277,6 +277,13 @@
             'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
     }
 </script>
+
+<!-- Tesseract.js for OCR -->
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+<!-- Hidden canvas for PDF page rendering (used by OCR) -->
+<canvas id="ocrCanvas" style="display:none;"></canvas>
+
 <!-- Main app (plain script, no ES modules) -->
 <script src="app.js"></script>
 </body>

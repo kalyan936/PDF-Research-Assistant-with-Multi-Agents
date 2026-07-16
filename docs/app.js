@@ -101,6 +101,32 @@ var IngestionAgent = {
             }
 
             var pageText = pageLines.join('\n').replace(/\s+/g, ' ').trim();
+
+            // --- HYBRID OCR FALLBACK ---
+            // If the page has very little native text, it might be an image or scanned page.
+            if (pageText.length < 500) {
+                if (typeof Tesseract !== 'undefined') {
+                    onProgress('Ingestion Agent: Running OCR on page ' + i + ' (Image/Table detected)…', 15 + Math.round((i / pdf.numPages) * 15));
+                    try {
+                        var viewport = page.getViewport({ scale: 2.0 }); // Higher scale for better OCR accuracy
+                        var canvas = document.getElementById('ocrCanvas');
+                        var ctx = canvas.getContext('2d');
+                        canvas.width = viewport.width;
+                        canvas.height = viewport.height;
+                        
+                        await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+                        
+                        var result = await Tesseract.recognize(canvas, 'eng', { logger: m => {} });
+                        if (result && result.data && result.data.text) {
+                            // Append OCR text to whatever native text we found
+                            pageText += '\n\n[OCR Extracted]:\n' + result.data.text.trim();
+                        }
+                    } catch(ocrErr) {
+                        console.warn('OCR failed on page ' + i, ocrErr);
+                    }
+                }
+            }
+
             var wordCount = pageText.split(/\s+/).filter(Boolean).length;
             totalWords += wordCount;
 
